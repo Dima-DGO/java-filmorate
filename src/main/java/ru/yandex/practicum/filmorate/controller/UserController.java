@@ -52,7 +52,14 @@ public class UserController {
 
         existingUser.setEmail(user.getEmail());
         existingUser.setLogin(user.getLogin());
-        existingUser.setName(user.getName());
+
+        // Обработка имени: если пустое, устанавливаем равным логину
+        if (user.getName() == null || user.getName().isBlank()) {
+            existingUser.setName(user.getLogin());
+        } else {
+            existingUser.setName(user.getName());
+        }
+
         existingUser.setBirthday(user.getBirthday());
 
         log.info("Обновлён пользователь: {}", existingUser.getLogin());
@@ -65,6 +72,7 @@ public class UserController {
         return new ArrayList<>(users.values());
     }
 }
+
 
 
 

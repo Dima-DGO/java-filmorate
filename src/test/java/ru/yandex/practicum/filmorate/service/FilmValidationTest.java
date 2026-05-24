@@ -79,7 +79,7 @@ class FilmValidationTest {
     void testValidReleaseDate() {
         Film film = new Film();
         film.setName("Test Film");
-        film.setReleaseDate(FIXED_DATE);
+        film.setReleaseDate(ValidationService.getMinReleaseDate());
         assertDoesNotThrow(() -> validationService.validateFilm(film));
     }
 
