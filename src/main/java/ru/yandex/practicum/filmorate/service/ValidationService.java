@@ -1,9 +1,9 @@
-
 package ru.yandex.practicum.filmorate.service;
 
+import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.User;
-import ru.yandex.practicum.filmorate.exception.ValidationException;
+
 import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 
@@ -11,10 +11,6 @@ import java.time.LocalDate;
 public class ValidationService {
 
     private static final LocalDate MIN_RELEASE_DATE = LocalDate.of(1895, 12, 28);
-
-    public static LocalDate getMinReleaseDate() {
-        return MIN_RELEASE_DATE;
-    }
 
     public void validateFilm(Film film) {
         if (film.getName() == null || film.getName().isBlank()) {
@@ -25,7 +21,7 @@ public class ValidationService {
             throw new ValidationException("Максимальная длина описания — 200 символов");
         }
 
-        if (film.getReleaseDate() != null && film.getReleaseDate().isBefore(MIN_RELEASE_DATE)) {
+        if (film.getReleaseDate() != null && film.getReleaseDate().isBefore(LocalDate.of(1895, 12, 28))) {
             throw new ValidationException("Дата релиза не может быть раньше 28 декабря 1895 года");
         }
 
@@ -35,6 +31,7 @@ public class ValidationService {
     }
 
     public void validateUser(User user) {
+
         if (user.getEmail() == null || user.getEmail().isBlank()) {
             throw new ValidationException("Электронная почта не может быть пустой");
         }
@@ -42,7 +39,10 @@ public class ValidationService {
             throw new ValidationException("Электронная почта должна содержать символ @");
         }
 
-        if (user.getLogin() == null || user.getLogin().isBlank() || user.getLogin().contains(" ")) {
+        if (user.getLogin() == null || user.getLogin().isBlank()) {
+            throw new ValidationException("Логин не может быть пустым и содержать пробелы");
+        }
+        if (user.getLogin().contains(" ")) {
             throw new ValidationException("Логин не может быть пустым и содержать пробелы");
         }
 
@@ -50,5 +50,10 @@ public class ValidationService {
             throw new ValidationException("Дата рождения не может быть в будущем");
         }
     }
+
+    public static LocalDate getMinReleaseDate() {
+        return MIN_RELEASE_DATE;
+    }
+
 }
 
