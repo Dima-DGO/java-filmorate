@@ -16,7 +16,6 @@ public class FilmService {
     private final FilmStorage filmStorage;
     private final UserService userService;
     private final ValidationService validationService;
-    private final Map<Integer, Set<Integer>> filmLikes = new HashMap<>();
 
     public FilmService(FilmStorage filmStorage, UserService userService, ValidationService validationService) {
         this.filmStorage = filmStorage;
@@ -28,7 +27,6 @@ public class FilmService {
         validationService.validateFilm(film);
         return filmStorage.addFilm(film);
     }
-
 
     public Film updateFilm(Film film) {
         if (film.getId() == null) {
@@ -69,7 +67,7 @@ public class FilmService {
 
         User user = userService.getUserById(userId);
 
-        Set<Integer> likes = filmLikes.computeIfAbsent(filmId, k -> new HashSet<>());
+        Set<Integer> likes = film.getLikes();
 
         if (!likes.add(userId)) {
             throw new ValidationException("Пользователь уже поставил лайк этому фильму");
@@ -84,7 +82,7 @@ public class FilmService {
 
         User user = userService.getUserById(userId);
 
-        Set<Integer> likes = filmLikes.get(filmId);
+        Set<Integer> likes = film.getLikes();
         if (likes == null || !likes.remove(userId)) {
             throw new ValidationException("У фильма нет лайка от этого пользователя");
         }
@@ -93,12 +91,11 @@ public class FilmService {
     public List<Film> getPopularFilms(int count) {
         return filmStorage.getAllFilms().stream()
                 .sorted((f1, f2) -> {
-                    int likes1 = filmLikes.getOrDefault(f1.getId(), Collections.emptySet()).size();
-                    int likes2 = filmLikes.getOrDefault(f2.getId(), Collections.emptySet()).size();
+                    int likes1 = f1.getLikes().size();
+                    int likes2 = f2.getLikes().size();
                     return Integer.compare(likes2, likes1);
                 })
                 .limit(count)
                 .collect(Collectors.toList());
     }
 }
-
