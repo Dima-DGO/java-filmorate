@@ -43,10 +43,11 @@ public class ValidationService {
         }
 
         if (user.getLogin() == null || user.getLogin().isBlank()) {
-            throw new ValidationException("Логин не может быть пустым");
+            throw new ValidationException("Логин не может быть пустым и содержать пробелы");
         }
+
         if (user.getLogin().contains(" ")) {
-            throw new ValidationException("Логин не может содержать пробелы");
+            throw new ValidationException("Логин не может быть пустым и содержать пробелы");
         }
 
         if (user.getName() != null && user.getName().isBlank()) {
