@@ -18,7 +18,7 @@ public class ValidationService {
         }
 
         if (film.getDescription() != null && film.getDescription().length() > 200) {
-            throw new ValidationException("Описание фильма не может содержать больше 200 символов");
+            throw new ValidationException("Максимальная длина описания — 200 символов");
         }
 
         if (film.getReleaseDate() != null && film.getReleaseDate().isBefore(LocalDate.of(1895, 12, 28))) {
@@ -26,23 +26,24 @@ public class ValidationService {
         }
 
         if (film.getDuration() != null && film.getDuration() <= 0) {
-            throw new ValidationException("Продолжительность фильма должна быть положительной");
+            throw new ValidationException("Продолжительность фильма должна быть положительным числом");
         }
     }
 
     public void validateUser(User user) {
+
         if (user.getEmail() == null || user.getEmail().isBlank()) {
-            throw new ValidationException("Email не может быть пустым");
+            throw new ValidationException("Электронная почта не может быть пустой");
         }
         if (!user.getEmail().contains("@")) {
-            throw new ValidationException("Email должен содержать символ @");
+            throw new ValidationException("Электронная почта должна содержать символ @");
         }
 
         if (user.getLogin() == null || user.getLogin().isBlank()) {
-            throw new ValidationException("Логин не может быть пустым");
+            throw new ValidationException("Логин не может быть пустым и содержать пробелы");
         }
         if (user.getLogin().contains(" ")) {
-            throw new ValidationException("Логин не должен содержать пробелы");
+            throw new ValidationException("Логин не может быть пустым и содержать пробелы");
         }
 
         if (user.getBirthday() != null && user.getBirthday().isAfter(LocalDate.now())) {
