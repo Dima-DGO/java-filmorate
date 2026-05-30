@@ -2,7 +2,6 @@ package ru.yandex.practicum.filmorate.storage.user;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.model.User;
 
 import java.util.*;
@@ -16,9 +15,6 @@ public class InMemoryUserStorage implements UserStorage {
 
     @Override
     public User addUser(User user) {
-        if (user.getName() == null || user.getName().isBlank()) {
-            user.setName(user.getLogin());
-        }
         user.setId(nextId++);
         users.put(user.getId(), user);
         log.info("Добавлен пользователь: {}", user.getLogin());
@@ -27,24 +23,10 @@ public class InMemoryUserStorage implements UserStorage {
 
     @Override
     public User updateUser(User user) {
-        if (user.getId() == null) {
-            throw new IllegalArgumentException("ID пользователя не может быть null при обновлении");
-        }
-
         User existingUser = users.get(user.getId());
-        if (existingUser == null) {
-            throw new NotFoundException("Пользователь с ID " + user.getId() + " не найден");
-        }
-
         existingUser.setEmail(user.getEmail());
         existingUser.setLogin(user.getLogin());
-
-        if (user.getName() == null || user.getName().isBlank()) {
-            existingUser.setName(user.getLogin());
-        } else {
-            existingUser.setName(user.getName());
-        }
-
+        existingUser.setName(user.getName());
         existingUser.setBirthday(user.getBirthday());
 
         log.info("Обновлён пользователь: {}", existingUser.getLogin());
@@ -53,11 +35,7 @@ public class InMemoryUserStorage implements UserStorage {
 
     @Override
     public User getUserById(int id) {
-        User user = users.get(id);
-        if (user == null) {
-            throw new NotFoundException("Пользователь с ID " + id + " не найден");
-        }
-        return user;
+        return users.get(id);
     }
 
     @Override
@@ -68,9 +46,6 @@ public class InMemoryUserStorage implements UserStorage {
 
     @Override
     public void deleteUser(int id) {
-        if (!users.containsKey(id)) {
-            throw new NotFoundException("Пользователь с ID " + id + " не найден");
-        }
         users.remove(id);
         log.info("Удален пользователь с ID: {}", id);
     }

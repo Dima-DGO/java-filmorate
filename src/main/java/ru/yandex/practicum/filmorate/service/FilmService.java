@@ -15,18 +15,32 @@ public class FilmService {
 
     private final FilmStorage filmStorage;
     private final UserService userService;
+    private final ValidationService validationService;
     private final Map<Integer, Set<Integer>> filmLikes = new HashMap<>();
 
-    public FilmService(FilmStorage filmStorage, UserService userService) {
+    public FilmService(FilmStorage filmStorage, UserService userService, ValidationService validationService) {
         this.filmStorage = filmStorage;
         this.userService = userService;
+        this.validationService = validationService;
     }
 
     public Film addFilm(Film film) {
+        validationService.validateFilm(film);
         return filmStorage.addFilm(film);
     }
 
+
     public Film updateFilm(Film film) {
+        if (film.getId() == null) {
+            throw new IllegalArgumentException("ID фильма не может быть null при обновлении");
+        }
+
+        Film existingFilm = filmStorage.getFilmById(film.getId());
+        if (existingFilm == null) {
+            throw new NotFoundException("Фильм с ID " + film.getId() + " не найден");
+        }
+
+        validationService.validateFilm(film);
         return filmStorage.updateFilm(film);
     }
 
@@ -43,6 +57,7 @@ public class FilmService {
     }
 
     public void deleteFilm(int id) {
+        filmStorage.getFilmById(id);
         filmStorage.deleteFilm(id);
     }
 
@@ -54,8 +69,7 @@ public class FilmService {
 
         User user = userService.getUserById(userId);
 
-        filmLikes.putIfAbsent(filmId, new HashSet<>());
-        Set<Integer> likes = filmLikes.get(filmId);
+        Set<Integer> likes = filmLikes.computeIfAbsent(filmId, k -> new HashSet<>());
 
         if (!likes.add(userId)) {
             throw new ValidationException("Пользователь уже поставил лайк этому фильму");

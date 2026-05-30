@@ -13,16 +13,37 @@ import java.util.stream.Collectors;
 public class UserService {
 
     private final UserStorage userStorage;
+    private final ValidationService validationService;
 
-    public UserService(UserStorage userStorage) {
+    public UserService(UserStorage userStorage, ValidationService validationService) {
         this.userStorage = userStorage;
+        this.validationService = validationService;
     }
 
     public User addUser(User user) {
+        validationService.validateUser(user);
+        if (user.getName() == null || user.getName().isBlank()) {
+            user.setName(user.getLogin());
+        }
         return userStorage.addUser(user);
     }
 
+
     public User updateUser(User user) {
+        if (user.getId() == null) {
+            throw new IllegalArgumentException("ID пользователя не может быть null при обновлении");
+        }
+
+        User existingUser = userStorage.getUserById(user.getId());
+        if (existingUser == null) {
+            throw new NotFoundException("Пользователь с ID " + user.getId() + " не найден");
+        }
+
+        validationService.validateUser(user);
+
+        if (user.getName() == null || user.getName().isBlank()) {
+            user.setName(user.getLogin());
+        }
         return userStorage.updateUser(user);
     }
 

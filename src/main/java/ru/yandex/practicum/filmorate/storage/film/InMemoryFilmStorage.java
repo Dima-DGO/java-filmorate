@@ -2,7 +2,6 @@ package ru.yandex.practicum.filmorate.storage.film;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.model.Film;
 
 import java.util.*;
@@ -24,15 +23,7 @@ public class InMemoryFilmStorage implements FilmStorage {
 
     @Override
     public Film updateFilm(Film film) {
-        if (film.getId() == null) {
-            throw new IllegalArgumentException("ID фильма не может быть null при обновлении");
-        }
-
         Film existingFilm = films.get(film.getId());
-        if (existingFilm == null) {
-            throw new NotFoundException("Фильм с ID " + film.getId() + " не найден");
-        }
-
         existingFilm.setName(film.getName());
         existingFilm.setDescription(film.getDescription());
         existingFilm.setReleaseDate(film.getReleaseDate());
@@ -44,11 +35,7 @@ public class InMemoryFilmStorage implements FilmStorage {
 
     @Override
     public Film getFilmById(int id) {
-        Film film = films.get(id);
-        if (film == null) {
-            throw new NotFoundException("Фильм с ID " + id + " не найден");
-        }
-        return film;
+        return films.get(id);
     }
 
     @Override
@@ -59,9 +46,6 @@ public class InMemoryFilmStorage implements FilmStorage {
 
     @Override
     public void deleteFilm(int id) {
-        if (!films.containsKey(id)) {
-            throw new NotFoundException("Фильм с ID " + id + " не найден");
-        }
         films.remove(id);
         log.info("Удален фильм с ID: {}", id);
     }
