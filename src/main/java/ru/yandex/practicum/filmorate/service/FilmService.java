@@ -15,7 +15,6 @@ import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
 import ru.yandex.practicum.filmorate.storage.genre.GenreDbStorage;
 import ru.yandex.practicum.filmorate.storage.mpa.MpaDbStorage;
 
-import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -76,13 +75,10 @@ public class FilmService {
         filmStorage.removeLike(filmId, userId);
     }
 
-    public List<Film> getPopularFilms(int count) {
-        return filmStorage.getAllFilms().stream()
-                .sorted(Comparator.comparingInt((Film f) -> f.getLikes().size()).reversed())
-                .limit(count)
-                .collect(Collectors.toList());
-    }
 
+    public List<Film> getPopularFilms(int count) {
+        return filmStorage.getPopularFilms(count);
+    }
 
     private void validateFilmRefs(Film film) {
         if (film.getMpa() != null) {

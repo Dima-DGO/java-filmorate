@@ -89,7 +89,7 @@ public class FilmDbStorage implements FilmStorage {
         ).stream().findFirst().orElse(null);
 
         if (film != null) {
-            loadGenresAndLikes(List.of(film));
+            loadGenres(List.of(film));
         }
         return film;
     }
@@ -103,7 +103,24 @@ public class FilmDbStorage implements FilmStorage {
                 LEFT JOIN mpa m ON m.id = f.mpa_id
                 ORDER BY f.film_id
                 """, this::mapRowToFilm);
-        loadGenresAndLikes(films);
+        loadGenres(films);
+        return films;
+    }
+
+    @Override
+    public List<Film> getPopularFilms(int count) {
+        List<Film> films = jdbcTemplate.query("""
+                SELECT f.film_id, f.name, f.description, f.release_date, f.duration,
+                       f.mpa_id, m.name AS mpa_name,
+                       COUNT(l.user_id) AS likes_count
+                FROM films f
+                LEFT JOIN mpa m ON m.id = f.mpa_id
+                LEFT JOIN likes l ON f.film_id = l.film_id
+                GROUP BY f.film_id, f.name, f.description, f.release_date, f.duration, f.mpa_id, m.name
+                ORDER BY likes_count DESC, f.film_id
+                LIMIT ?
+                """, this::mapRowToFilm, count);
+        loadGenres(films);
         return films;
     }
 
@@ -124,13 +141,12 @@ public class FilmDbStorage implements FilmStorage {
                 """, params);
     }
 
-    private void loadGenresAndLikes(List<Film> films) {
+    private void loadGenres(List<Film> films) {
         List<Integer> ids = films.stream().map(Film::getId).collect(Collectors.toList());
         if (ids.isEmpty()) {
             return;
         }
         String inClause = String.join(",", Collections.nCopies(ids.size(), "?"));
-        Object[] args = ids.toArray();
 
         Map<Integer, Set<Genre>> genresByFilm = jdbcTemplate.query("""
                 SELECT fg.film_id, g.id, g.name
@@ -147,24 +163,11 @@ public class FilmDbStorage implements FilmStorage {
                 result.computeIfAbsent(rs.getInt("film_id"), k -> new LinkedHashSet<>()).add(genre);
             }
             return result;
-        }, args);
-
-        Map<Integer, Set<Integer>> likesByFilm = jdbcTemplate.query("""
-                SELECT film_id, user_id FROM likes WHERE film_id IN (%s)
-                """.formatted(inClause), rs -> {
-            Map<Integer, Set<Integer>> result = new HashMap<>();
-            while (rs.next()) {
-                result.computeIfAbsent(rs.getInt("film_id"), k -> new HashSet<>())
-                        .add(rs.getInt("user_id"));
-            }
-            return result;
-        }, args);
+        }, ids.toArray());
 
         for (Film film : films) {
             film.getGenres().clear();
             film.getGenres().addAll(genresByFilm.getOrDefault(film.getId(), new HashSet<>()));
-            film.getLikes().clear();
-            film.getLikes().addAll(likesByFilm.getOrDefault(film.getId(), new HashSet<>()));
         }
     }
 
@@ -186,7 +189,6 @@ public class FilmDbStorage implements FilmStorage {
         return film;
     }
 
-
     @Override
     public void addLike(int filmId, int userId) {
         jdbcTemplate.update("MERGE INTO likes (film_id, user_id) KEY (film_id, user_id) VALUES (?, ?)",
@@ -202,3 +204,4 @@ public class FilmDbStorage implements FilmStorage {
     }
 
 }
+
