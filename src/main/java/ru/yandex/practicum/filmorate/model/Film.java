@@ -15,4 +15,5 @@ public class Film {
     private Integer duration;
     private MpaRating mpa;
     private Set<Genre> genres = new LinkedHashSet<>();
+    private Set<Director> directors = new LinkedHashSet<>();
 }
