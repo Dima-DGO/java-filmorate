@@ -202,6 +202,24 @@ public class FilmDbStorage implements FilmStorage {
             throw new NotFoundException("Лайк пользователя id=" + userId + " у фильма id=" + filmId + " не найден");
         }
     }
+    @Override
+    public List<Film> getPopularFilms(int count, Integer genreId, Integer year) {
+        throw new UnsupportedOperationException("getPopularFilms с фильтрами: фича «Популярные фильмы»");
+    }
 
+    @Override
+    public List<Film> getFilmsByDirector(int directorId, String sortBy) {
+        throw new UnsupportedOperationException("getFilmsByDirector: фича «Фильмы по режиссёрам»");
+    }
+
+    @Override
+    public List<Film> searchFilms(String query, List<String> by) {
+        throw new UnsupportedOperationException("searchFilms: фича «Поиск»");
+    }
+
+    @Override
+    public List<Film> getCommonFilms(int userId, int friendId) {
+        throw new UnsupportedOperationException("getCommonFilms: фича «Общие фильмы»");
+    }
 }
 
