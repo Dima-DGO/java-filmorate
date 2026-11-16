@@ -80,6 +80,12 @@ public class FilmService {
         return filmStorage.getPopularFilms(count);
     }
 
+    public List<Film> getCommonFilms(int userId, int friendId) {
+        userService.getUserById(userId);
+        userService.getUserById(friendId);
+        return filmStorage.getCommonFilms(userId, friendId);
+    }
+
     private void validateFilmRefs(Film film) {
         if (film.getMpa() != null) {
             MpaRating mpa = mpaStorage.getById(film.getMpa().getId());

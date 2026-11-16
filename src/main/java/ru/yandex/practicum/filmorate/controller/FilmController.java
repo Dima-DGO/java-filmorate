@@ -54,6 +54,12 @@ public class FilmController {
         return filmService.getPopularFilms(count);
     }
 
+    @GetMapping("/common")
+    public List<Film> getCommonFilms(@RequestParam int userId, @RequestParam int friendId) {
+        log.info("Получен запрос на получение общих фильмов пользователей {} и {}", userId, friendId);
+        return filmService.getCommonFilms(userId, friendId);
+    }
+
     @PutMapping("/{filmId}/like/{userId}")
     public void addLike(@PathVariable int filmId, @PathVariable int userId) {
         log.info("Пользователь {} поставил лайк фильму {}", userId, filmId);

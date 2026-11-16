@@ -125,6 +125,24 @@ public class FilmDbStorage implements FilmStorage {
     }
 
     @Override
+    public List<Film> getCommonFilms(int userId, int friendId) {
+        List<Film> films = jdbcTemplate.query("""
+                SELECT f.film_id, f.name, f.description, f.release_date, f.duration,
+                       f.mpa_id, m.name AS mpa_name,
+                       COUNT(l.user_id) AS likes_count
+                FROM films f
+                JOIN likes ul ON ul.film_id = f.film_id AND ul.user_id = ?
+                JOIN likes fl ON fl.film_id = f.film_id AND fl.user_id = ?
+                LEFT JOIN mpa m ON m.id = f.mpa_id
+                LEFT JOIN likes l ON l.film_id = f.film_id
+                GROUP BY f.film_id, f.name, f.description, f.release_date, f.duration, f.mpa_id, m.name
+                ORDER BY likes_count DESC, f.film_id
+                """, this::mapRowToFilm, userId, friendId);
+        loadGenres(films);
+        return films;
+    }
+
+    @Override
     public void deleteFilm(int id) {
         jdbcTemplate.update("DELETE FROM films WHERE film_id = ?", id);
     }
