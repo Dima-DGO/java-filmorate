@@ -7,6 +7,7 @@ import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
+import ru.yandex.practicum.filmorate.model.Director;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.Genre;
 import ru.yandex.practicum.filmorate.model.MpaRating;
@@ -50,6 +51,7 @@ public class FilmDbStorage implements FilmStorage {
 
         film.setId(keyHolder.getKey().intValue());
         saveGenres(film.getId(), film.getGenres());
+        saveDirectors(film.getId(), film.getDirectors());
         log.info("Добавлен фильм: id={} name={}", film.getId(), film.getName());
         return film;
     }
@@ -71,7 +73,9 @@ public class FilmDbStorage implements FilmStorage {
         }
 
         jdbcTemplate.update("DELETE FROM film_genres WHERE film_id = ?", film.getId());
+        jdbcTemplate.update("DELETE FROM film_directors WHERE film_id = ?", film.getId());
         saveGenres(film.getId(), film.getGenres());
+        saveDirectors(film.getId(), film.getDirectors());
 
         log.info("Обновлён фильм: id={} name={}", film.getId(), film.getName());
         return film;
@@ -90,6 +94,7 @@ public class FilmDbStorage implements FilmStorage {
 
         if (film != null) {
             loadGenres(List.of(film));
+            loadDirectors(List.of(film));
         }
         return film;
     }
@@ -104,6 +109,7 @@ public class FilmDbStorage implements FilmStorage {
                 ORDER BY f.film_id
                 """, this::mapRowToFilm);
         loadGenres(films);
+        loadDirectors(films);
         return films;
     }
 
@@ -121,6 +127,7 @@ public class FilmDbStorage implements FilmStorage {
                 LIMIT ?
                 """, this::mapRowToFilm, count);
         loadGenres(films);
+        loadDirectors(films);
         return films;
     }
 
@@ -186,6 +193,58 @@ public class FilmDbStorage implements FilmStorage {
         for (Film film : films) {
             film.getGenres().clear();
             film.getGenres().addAll(genresByFilm.getOrDefault(film.getId(), new HashSet<>()));
+        }
+    }
+
+    private void saveDirectors(int filmId, Set<Director> directors) {
+        if (directors == null || directors.isEmpty()) {
+            return;
+        }
+        List<Object[]> params = directors.stream()
+                .map(director -> {
+                    if (director.getId() == null || !existsDirector(director.getId())) {
+                        throw new NotFoundException("Режиссёр с id=" + director.getId() + " не найден");
+                    }
+                    return new Object[]{filmId, director.getId()};
+                })
+                .collect(Collectors.toList());
+        jdbcTemplate.batchUpdate("""
+                MERGE INTO film_directors (film_id, director_id) KEY (film_id, director_id) VALUES (?, ?)
+                """, params);
+    }
+
+    private boolean existsDirector(int id) {
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM directors WHERE id = ?", Integer.class, id);
+        return count != null && count > 0;
+    }
+
+    private void loadDirectors(List<Film> films) {
+        List<Integer> ids = films.stream().map(Film::getId).collect(Collectors.toList());
+        if (ids.isEmpty()) {
+            return;
+        }
+        String inClause = String.join(",", Collections.nCopies(ids.size(), "?"));
+        Map<Integer, Set<Director>> directorsByFilm = jdbcTemplate.query("""
+                SELECT fd.film_id, d.id, d.name
+                FROM film_directors fd
+                JOIN directors d ON d.id = fd.director_id
+                WHERE fd.film_id IN (%s)
+                ORDER BY fd.film_id, d.id
+                """.formatted(inClause), rs -> {
+            Map<Integer, Set<Director>> result = new HashMap<>();
+            while (rs.next()) {
+                Director director = new Director();
+                director.setId(rs.getInt("id"));
+                director.setName(rs.getString("name"));
+                result.computeIfAbsent(rs.getInt("film_id"), k -> new LinkedHashSet<>()).add(director);
+            }
+            return result;
+        }, ids.toArray());
+
+        for (Film film : films) {
+            film.getDirectors().clear();
+            film.getDirectors().addAll(directorsByFilm.getOrDefault(film.getId(), new LinkedHashSet<>()));
         }
     }
 
