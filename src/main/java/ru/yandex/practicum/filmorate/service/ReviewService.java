@@ -43,8 +43,23 @@ public class ReviewService {
         return review;
     }
 
-    public List<Review> getAllReview() {
-        return reviewStorage.getAllReview();
+    public List<Review> getAllReview(Integer filmId, int count) {
+        if (count < 0) {
+            throw new ValidationException("Количество отзывов не может быть отрицательным");
+        }
+        return reviewStorage.getAllReview(filmId, count);
+    }
+
+    public void addReaction(int reviewId, int userId, boolean positive) {
+        getReviewById(reviewId);
+        userService.getUserById(userId);
+        reviewStorage.addReaction(reviewId, userId, positive);
+    }
+
+    public void removeReaction(int reviewId, int userId, boolean positive) {
+        getReviewById(reviewId);
+        userService.getUserById(userId);
+        reviewStorage.removeReaction(reviewId, userId, positive);
     }
 
     public void deleteReview(int id) {

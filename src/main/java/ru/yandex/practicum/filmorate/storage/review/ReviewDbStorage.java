@@ -16,6 +16,12 @@ import java.util.List;
 @Repository
 @RequiredArgsConstructor
 public class ReviewDbStorage implements ReviewStorage {
+    private static final String SELECT_REVIEWS = """
+            SELECT r.*,
+                   COALESCE((SELECT SUM(CASE WHEN rr.is_positive THEN 1 ELSE -1 END)
+                             FROM review_reactions rr WHERE rr.review_id = r.review_id), 0) AS useful
+            FROM reviews r
+            """;
     private final JdbcTemplate jdbcTemplate;
 
     @Override
@@ -42,13 +48,33 @@ public class ReviewDbStorage implements ReviewStorage {
 
     @Override
     public Review getReviewById(int id) {
-        return jdbcTemplate.query("SELECT * FROM reviews WHERE review_id = ?", this::mapRowToReview, id)
+        return jdbcTemplate.query(SELECT_REVIEWS + " WHERE r.review_id = ?", this::mapRowToReview, id)
                 .stream().findFirst().orElse(null);
     }
 
     @Override
-    public List<Review> getAllReview() {
-        return jdbcTemplate.query("SELECT * FROM reviews ORDER BY review_id", this::mapRowToReview);
+    public List<Review> getAllReview(Integer filmId, int count) {
+        String order = " ORDER BY useful DESC, r.review_id LIMIT ?";
+        if (filmId == null) {
+            return jdbcTemplate.query(SELECT_REVIEWS + order, this::mapRowToReview, count);
+        }
+        return jdbcTemplate.query(SELECT_REVIEWS + " WHERE r.film_id = ?" + order,
+                this::mapRowToReview, filmId, count);
+    }
+
+    @Override
+    public void addReaction(int reviewId, int userId, boolean positive) {
+        jdbcTemplate.update("""
+                MERGE INTO review_reactions (review_id, user_id, is_positive)
+                KEY (review_id, user_id) VALUES (?, ?, ?)
+                """, reviewId, userId, positive);
+    }
+
+    @Override
+    public void removeReaction(int reviewId, int userId, boolean positive) {
+        jdbcTemplate.update("""
+                DELETE FROM review_reactions WHERE review_id = ? AND user_id = ? AND is_positive = ?
+                """, reviewId, userId, positive);
     }
 
     @Override
@@ -63,7 +89,7 @@ public class ReviewDbStorage implements ReviewStorage {
         review.setPositive(rs.getBoolean("is_positive"));
         review.setUserId(rs.getInt("user_id"));
         review.setFilmId(rs.getInt("film_id"));
-        review.setUseful(0);
+        review.setUseful(rs.getInt("useful"));
         return review;
     }
 }

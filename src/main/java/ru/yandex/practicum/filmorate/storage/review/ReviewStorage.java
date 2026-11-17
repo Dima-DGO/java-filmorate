@@ -11,7 +11,11 @@ public interface ReviewStorage {
 
     Review getReviewById(int id);
 
-    List<Review> getAllReview();
+    List<Review> getAllReview(Integer filmId, int count);
+
+    void addReaction(int reviewId, int userId, boolean positive);
+
+    void removeReaction(int reviewId, int userId, boolean positive);
 
     void deleteReview(int id);
 }
