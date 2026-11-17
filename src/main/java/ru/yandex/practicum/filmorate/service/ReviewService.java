@@ -51,20 +51,23 @@ public class ReviewService {
     }
 
     public void addReaction(int reviewId, int userId, boolean positive) {
-        getReviewById(reviewId);
-        userService.getUserById(userId);
+        validateReaction(reviewId, userId);
         reviewStorage.addReaction(reviewId, userId, positive);
     }
 
     public void removeReaction(int reviewId, int userId, boolean positive) {
-        getReviewById(reviewId);
-        userService.getUserById(userId);
+        validateReaction(reviewId, userId);
         reviewStorage.removeReaction(reviewId, userId, positive);
     }
 
     public void deleteReview(int id) {
         getReviewById(id);
         reviewStorage.deleteReview(id);
+    }
+
+    private void validateReaction(int reviewId, int userId) {
+        getReviewById(reviewId);
+        userService.getUserById(userId);
     }
 
     private void validateContent(Review review) {
