@@ -6,6 +6,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.model.Director;
 import ru.yandex.practicum.filmorate.model.Film;
@@ -28,6 +29,7 @@ public class FilmDbStorage implements FilmStorage {
     private final JdbcTemplate jdbcTemplate;
 
     @Override
+    @Transactional
     public Film addFilm(Film film) {
         String sql = """
                 INSERT INTO films (name, description, release_date, duration, mpa_id)
@@ -57,6 +59,7 @@ public class FilmDbStorage implements FilmStorage {
     }
 
     @Override
+    @Transactional
     public Film updateFilm(Film film) {
         String sql = """
                 UPDATE films SET name = ?, description = ?, release_date = ?, duration = ?, mpa_id = ?
@@ -146,7 +149,7 @@ public class FilmDbStorage implements FilmStorage {
                 ORDER BY likes_count DESC, f.film_id
                 """, this::mapRowToFilm, userId, friendId);
         loadGenres(films);
-        loadGenres(films);
+        loadDirectors(films);
         return films;
     }
 
