@@ -50,6 +50,13 @@ public class FilmService {
         return filmStorage.getAllFilms();
     }
 
+    public List<Film> searchFilms(String query, String by) {
+        if (!"title".equals(by)) {
+            throw new ValidationException("Неподдерживаемое поле поиска: " + by);
+        }
+        return filmStorage.searchFilms(query);
+    }
+
     public Film getFilmById(int id) {
         Film film = filmStorage.getFilmById(id);
         if (film == null) {

@@ -13,6 +13,8 @@ public interface FilmStorage {
 
     List<Film> getAllFilms();
 
+    List<Film> searchFilms(String query);
+
     void deleteFilm(int id);
 
 
