@@ -111,11 +111,14 @@ public class FilmDbStorage implements FilmStorage {
     public List<Film> searchFilms(String query) {
         List<Film> films = jdbcTemplate.query("""
                 SELECT f.film_id, f.name, f.description, f.release_date, f.duration,
-                       f.mpa_id, m.name AS mpa_name
+                       f.mpa_id, m.name AS mpa_name,
+                       COUNT(l.user_id) AS likes_count
                 FROM films f
                 LEFT JOIN mpa m ON m.id = f.mpa_id
+                LEFT JOIN likes l ON l.film_id = f.film_id
                 WHERE LOWER(f.name) LIKE LOWER(?)
-                ORDER BY f.film_id
+                GROUP BY f.film_id, f.name, f.description, f.release_date, f.duration, f.mpa_id, m.name
+                ORDER BY likes_count DESC, f.film_id
                 """, this::mapRowToFilm, "%" + query + "%");
         loadGenres(films);
         return films;
