@@ -58,6 +58,15 @@ class FilmDirectorConsistencyTest {
         return objectMapper.readTree(body).get("id").asInt();
     }
 
+    private JsonNode findFilm(JsonNode films, int filmId) {
+        for (JsonNode film : films) {
+            if (film.get("id").asInt() == filmId) {
+                return film;
+            }
+        }
+        return null;
+    }
+
     @Test
     void filmIsNotSavedWhenDirectorDoesNotExist() throws Exception {
         String name = "Orphan film " + System.nanoTime();
@@ -125,5 +134,114 @@ class FilmDirectorConsistencyTest {
         assertThat(found).isNotNull();
         assertThat(found.get("directors").size()).isEqualTo(1);
         assertThat(found.get("directors").get(0).get("id").asInt()).isEqualTo(directorId);
+    }
+
+    @Test
+    void filmIsNotSavedWhenGenreDoesNotExist() throws Exception {
+        String name = "Genre orphan " + System.nanoTime();
+        String body = "{\"name\":\"" + name + "\",\"releaseDate\":\"2000-01-01\",\"duration\":100,"
+                + "\"mpa\":{\"id\":1},\"genres\":[{\"id\":999999}]}";
+
+        mockMvc.perform(post("/films")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isNotFound());
+
+        String all = mockMvc.perform(get("/films"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(all).doesNotContain(name);
+    }
+
+    @Test
+    void popularFilmsContainDirectors() throws Exception {
+        int directorId = createDirector("Popular director " + System.nanoTime());
+        int filmId = createFilm("Popular film " + System.nanoTime(), directorId);
+        int userId = createUser("popularuser" + System.nanoTime());
+
+        mockMvc.perform(put("/films/{filmId}/like/{userId}", filmId, userId))
+                .andExpect(status().isOk());
+
+        String body = mockMvc.perform(get("/films/popular").param("count", "1000"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        JsonNode found = findFilm(objectMapper.readTree(body), filmId);
+        assertThat(found).isNotNull();
+        assertThat(found.get("directors").size()).isEqualTo(1);
+        assertThat(found.get("directors").get(0).get("id").asInt()).isEqualTo(directorId);
+    }
+
+    @Test
+    void filmsByDirectorContainDirectors() throws Exception {
+        int directorId = createDirector("Endpoint director " + System.nanoTime());
+        int filmId = createFilm("Endpoint film " + System.nanoTime(), directorId);
+
+        String body = mockMvc.perform(get("/films/director/{id}", directorId))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        JsonNode found = findFilm(objectMapper.readTree(body), filmId);
+        assertThat(found).isNotNull();
+        assertThat(found.get("directors").size()).isEqualTo(1);
+        assertThat(found.get("directors").get(0).get("id").asInt()).isEqualTo(directorId);
+    }
+
+    @Test
+    void filmIsNotSavedWhenDirectorHasNoId() throws Exception {
+        String name = "Director without id " + System.nanoTime();
+        String body = "{\"name\":\"" + name + "\",\"releaseDate\":\"2000-01-01\",\"duration\":100,"
+                + "\"mpa\":{\"id\":1},\"director\":[{\"name\":\"Unknown director\"}]}";
+
+        mockMvc.perform(post("/films")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isNotFound());
+
+        String all = mockMvc.perform(get("/films"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(all).doesNotContain(name);
+    }
+
+    @Test
+    void directorsAreEmptyAfterDirectorDeleted() throws Exception {
+        int directorId = createDirector("Deletable director " + System.nanoTime());
+        int filmId = createFilm("Film of deleted director " + System.nanoTime(), directorId);
+
+        mockMvc.perform(delete("/directors/{id}", directorId))
+                .andExpect(status().isOk());
+
+        String body = mockMvc.perform(get("/films/{id}", filmId))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        JsonNode directors = objectMapper.readTree(body).get("directors");
+        assertThat(directors).isNotNull();
+        assertThat(directors.size()).isEqualTo(0);
+    }
+
+    @Test
+    void filmWithoutDirectorsHasEmptyDirectorsField() throws Exception {
+        String name = "Film without directors " + System.nanoTime();
+        String body = "{\"name\":\"" + name + "\",\"releaseDate\":\"2000-01-01\",\"duration\":100,"
+                + "\"mpa\":{\"id\":1}}";
+
+        String created = mockMvc.perform(post("/films")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        int filmId = objectMapper.readTree(created).get("id").asInt();
+
+        String film = mockMvc.perform(get("/films/{id}", filmId))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        JsonNode node = objectMapper.readTree(film);
+        assertThat(node.has("directors")).isTrue();
+        assertThat(node.get("directors").size()).isEqualTo(0);
     }
 }
