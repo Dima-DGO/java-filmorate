@@ -307,5 +307,14 @@ public class FilmDbStorage implements FilmStorage {
         loadDirectors(films);
         return films;
     }
+    public Set<Integer> getLikedFilmIds(int userId) {
+        return new HashSet<>(jdbcTemplate.queryForList("SELECT film_id FROM likes WHERE user_id = ?",
+                Integer.class, userId));
+    }
+
+    @Override
+    public List<Film> getFilmsLikedByUsersExcluding(Collection<Integer> userIds, int excludeUserId) {
+        throw new RuntimeException("Method is not implemented yet");
+    }
 }
 
