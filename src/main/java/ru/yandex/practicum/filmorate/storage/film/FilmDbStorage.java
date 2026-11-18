@@ -280,6 +280,7 @@ public class FilmDbStorage implements FilmStorage {
             throw new NotFoundException("Лайк пользователя id=" + userId + " у фильма id=" + filmId + " не найден");
         }
     }
+
     @Override
     public List<Film> getFilmsByDirector(int directorId, String sortBy) {
         String orderBy = "year".equals(sortBy)
