@@ -146,6 +146,7 @@ public class FilmDbStorage implements FilmStorage {
                 ORDER BY likes_count DESC, f.film_id
                 """, this::mapRowToFilm, userId, friendId);
         loadGenres(films);
+        loadGenres(films);
         return films;
     }
 
