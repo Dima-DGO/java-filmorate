@@ -34,6 +34,7 @@ class FilmSearchApiTest {
     @BeforeEach
     void beforeEach() {
         jdbcTemplate.update("DELETE FROM films");
+        jdbcTemplate.update("DELETE FROM directors");
         jdbcTemplate.update("DELETE FROM users");
     }
 
@@ -92,6 +93,32 @@ class FilmSearchApiTest {
                 .andExpect(content().json("[]"));
     }
 
+    @Test
+    @DisplayName("Поиск по части имени режиссёра без учёта регистра возвращает его фильмы с режиссёрами")
+    void shouldFindFilmsByDirectorIgnoringCase() throws Exception {
+        int nolanId = createDirector("Christopher Nolan");
+        int tarantinoId = createDirector("Quentin Tarantino");
+        JsonNode matchingFilm = createFilm("Interstellar", "Космическое путешествие", nolanId);
+        createFilm("Nolan documentary", "Christopher Nolan", tarantinoId);
+
+        mockMvc.perform(get("/films/search")
+                        .param("query", "NoLa")
+                        .param("by", "director"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(content().json("[" + matchingFilm + "]"));
+    }
+
+    private int createDirector(String name) throws Exception {
+        ObjectNode request = objectMapper.createObjectNode().put("name", name);
+        String response = mockMvc.perform(post("/directors")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request.toString()))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        return objectMapper.readTree(response).get("id").asInt();
+    }
+
     private int createUser(String login) throws Exception {
         ObjectNode request = objectMapper.createObjectNode()
                 .put("login", login)
@@ -106,6 +133,10 @@ class FilmSearchApiTest {
     }
 
     private JsonNode createFilm(String name, String description) throws Exception {
+        return createFilm(name, description, null);
+    }
+
+    private JsonNode createFilm(String name, String description, Integer directorId) throws Exception {
         ObjectNode request = objectMapper.createObjectNode()
                 .put("name", name)
                 .put("description", description)
@@ -113,6 +144,9 @@ class FilmSearchApiTest {
                 .put("duration", 120);
         request.putObject("mpa").put("id", 1);
         request.putArray("genres").addObject().put("id", 1);
+        if (directorId != null) {
+            request.putArray("directors").addObject().put("id", directorId);
+        }
 
         String response = mockMvc.perform(post("/films")
                         .contentType(MediaType.APPLICATION_JSON)
