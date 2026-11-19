@@ -12,6 +12,7 @@ import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.Genre;
 import ru.yandex.practicum.filmorate.model.MpaRating;
 import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
+import ru.yandex.practicum.filmorate.storage.director.DirectorStorage;
 import ru.yandex.practicum.filmorate.storage.genre.GenreDbStorage;
 import ru.yandex.practicum.filmorate.storage.mpa.MpaDbStorage;
 
@@ -27,6 +28,7 @@ public class FilmService {
     private final ValidationService validationService;
     private final MpaDbStorage mpaStorage;
     private final GenreDbStorage genreStorage;
+    private final DirectorStorage directorStorage;
 
     public Film addFilm(Film film) {
         validationService.validateFilm(film);
@@ -82,6 +84,19 @@ public class FilmService {
         filmStorage.removeLike(filmId, userId);
     }
 
+    public List<Film> getFilmsByDirector(int directorId, String sortBy) {
+        if (directorStorage.getById(directorId) == null) {
+            throw new NotFoundException("Режиссёр с ID " + directorId + " не найден");
+        }
+        String normalized = sortBy == null || sortBy.isBlank()
+                ? "likes"
+                : sortBy.trim().toLowerCase();
+        if (!normalized.equals("year") && !normalized.equals("likes")) {
+            throw new ValidationException("Некорректный параметр sortBy: " + sortBy
+                    + ". Допустимые значения: year, likes");
+        }
+        return filmStorage.getFilmsByDirector(directorId, normalized);
+    }
 
     public List<Film> getPopularFilms(int count) {
         return filmStorage.getPopularFilms(count);
