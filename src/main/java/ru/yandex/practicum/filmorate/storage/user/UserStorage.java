@@ -26,5 +26,6 @@ public interface UserStorage {
 
     Set<Integer> getFriendIds(int userId);
 
+    List<Integer> getSimilarUserIds(int userId);
 }
 
