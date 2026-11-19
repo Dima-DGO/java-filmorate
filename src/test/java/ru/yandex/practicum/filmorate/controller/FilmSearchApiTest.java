@@ -109,6 +109,29 @@ class FilmSearchApiTest {
                 .andExpect(content().json("[" + matchingFilm + "]"));
     }
 
+    @Test
+    @DisplayName("Совместный поиск по названию и режиссёру объединяет совпадения без дублей")
+    void shouldFindFilmsByTitleOrDirectorWithoutDuplicates() throws Exception {
+        int nolanId = createDirector("Christopher Nolan");
+        int tarantinoId = createDirector("Quentin Tarantino");
+        JsonNode titleOnly = createFilm("Nolan biography", "Совпадение только по названию");
+        JsonNode directorOnly = createFilm("Interstellar", "Совпадение только по режиссёру", nolanId);
+        JsonNode both = createFilm("Nolan collection", "Совпадение по обоим полям", nolanId);
+        createFilm("Pulp Fiction", "Совпадений нет", tarantinoId);
+        JsonNode expected = objectMapper.createArrayNode()
+                .add(titleOnly)
+                .add(directorOnly)
+                .add(both);
+
+        mockMvc.perform(get("/films/search")
+                        .param("query", "NoLa")
+                        .param("by", "title,director"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(content().json(expected.toString()));
+    }
+
     private int createDirector(String name) throws Exception {
         ObjectNode request = objectMapper.createObjectNode().put("name", name);
         String response = mockMvc.perform(post("/directors")
