@@ -78,6 +78,20 @@ class FilmSearchApiTest {
                 .andExpect(jsonPath("$[2].id").value(withoutLikes));
     }
 
+    @Test
+    @DisplayName("Поиск без совпадений возвращает пустой JSON-массив")
+    void shouldReturnEmptyArrayWhenNoTitlesMatch() throws Exception {
+        createFilm("The Matrix", "История о выборе");
+        createFilm("Interstellar", "Космическое путешествие");
+
+        mockMvc.perform(get("/films/search")
+                        .param("query", "Avatar")
+                        .param("by", "title"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(content().json("[]"));
+    }
+
     private int createUser(String login) throws Exception {
         ObjectNode request = objectMapper.createObjectNode()
                 .put("login", login)
