@@ -15,12 +15,13 @@ public interface FilmStorage {
 
     void deleteFilm(int id);
 
-
     void addLike(int filmId, int userId);
 
     void removeLike(int filmId, int userId);
 
     List<Film> getPopularFilms(int count);
+
+    List<Film> getFilmsByDirector(int directorId, String sortBy);
 
     List<Film> getCommonFilms(int userId, int friendId);
 
