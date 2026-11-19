@@ -344,6 +344,7 @@ public class FilmDbStorage implements FilmStorage {
 
         List<Film> films = jdbcTemplate.query(sql, this::mapRowToFilm, args);
         loadGenres(films);
+        loadDirectors(films);
 
         return films;
     }

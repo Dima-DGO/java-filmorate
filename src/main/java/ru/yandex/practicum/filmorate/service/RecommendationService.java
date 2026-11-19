@@ -21,7 +21,7 @@ public class RecommendationService {
     public List<Film> getRecommendations(int userId) {
         log.debug("Построение рекомендаций для пользователя id={}", userId);
 
-        // check for existance
+        // check for existence
         userService.getUserById(userId);
 
         Set<Integer> likedByTarget = filmStorage.getLikedFilmIds(userId);
