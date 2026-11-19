@@ -53,10 +53,10 @@ public class FilmService {
     }
 
     public List<Film> searchFilms(String query, String by) {
-        if (!"title".equals(by)) {
+        if (!"title".equals(by) && !"director".equals(by)) {
             throw new ValidationException("Неподдерживаемое поле поиска: " + by);
         }
-        return filmStorage.searchFilms(query);
+        return filmStorage.searchFilms(query, by);
     }
 
     public Film getFilmById(int id) {

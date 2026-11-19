@@ -117,7 +117,17 @@ public class FilmDbStorage implements FilmStorage {
     }
 
     @Override
-    public List<Film> searchFilms(String query) {
+    public List<Film> searchFilms(String query, String by) {
+        String condition = "title".equals(by)
+                ? "LOWER(f.name) LIKE LOWER(?)"
+                : """
+                EXISTS (
+                    SELECT 1
+                    FROM film_directors fd
+                    JOIN directors d ON d.id = fd.director_id
+                    WHERE fd.film_id = f.film_id AND LOWER(d.name) LIKE LOWER(?)
+                )
+                """;
         List<Film> films = jdbcTemplate.query("""
                 SELECT f.film_id, f.name, f.description, f.release_date, f.duration,
                        f.mpa_id, m.name AS mpa_name,
@@ -125,11 +135,12 @@ public class FilmDbStorage implements FilmStorage {
                 FROM films f
                 LEFT JOIN mpa m ON m.id = f.mpa_id
                 LEFT JOIN likes l ON l.film_id = f.film_id
-                WHERE LOWER(f.name) LIKE LOWER(?)
+                WHERE %s
                 GROUP BY f.film_id, f.name, f.description, f.release_date, f.duration, f.mpa_id, m.name
                 ORDER BY likes_count DESC, f.film_id
-                """, this::mapRowToFilm, "%" + query + "%");
+                """.formatted(condition), this::mapRowToFilm, "%" + query + "%");
         loadGenres(films);
+        loadDirectors(films);
         return films;
     }
 
