@@ -9,6 +9,7 @@ import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 import org.springframework.transaction.annotation.Transactional;
 import ru.yandex.practicum.filmorate.model.EventType;
 import ru.yandex.practicum.filmorate.model.Operation;
+import ru.yandex.practicum.filmorate.model.Event;
 
 import java.util.List;
 
@@ -95,6 +96,10 @@ public class UserService {
         getUserById(userId);
         getUserById(otherUserId);
         return userStorage.getCommonFriends(userId, otherUserId);
+    }
+
+    public List<Event> getFeed(int userId) {
+        return eventService.getFeed(userId);
     }
 }
 
