@@ -156,14 +156,6 @@ public class FilmDbStorage implements FilmStorage {
     @Override
     @Transactional
     public void deleteFilm(int id) {
-        jdbcTemplate.update("""
-                DELETE FROM review_reactions
-                WHERE review_id IN (SELECT review_id FROM reviews WHERE film_id = ?)
-                """, id);
-        jdbcTemplate.update("DELETE FROM reviews WHERE film_id = ?", id);
-        jdbcTemplate.update("DELETE FROM likes WHERE film_id = ?", id);
-        jdbcTemplate.update("DELETE FROM film_genres WHERE film_id = ?", id);
-        jdbcTemplate.update("DELETE FROM film_directors WHERE film_id = ?", id);
         jdbcTemplate.update("DELETE FROM films WHERE film_id = ?", id);
         log.info("Удалён фильм: id={}", id);
     }

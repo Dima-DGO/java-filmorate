@@ -6,7 +6,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.model.User;
 
@@ -76,15 +75,7 @@ public class UserDbStorage implements UserStorage {
     }
 
     @Override
-    @Transactional
     public void deleteUser(int id) {
-        jdbcTemplate.update("""
-                DELETE FROM review_reactions
-                WHERE user_id = ? OR review_id IN (SELECT review_id FROM reviews WHERE user_id = ?)
-                """, id, id);
-        jdbcTemplate.update("DELETE FROM reviews WHERE user_id = ?", id);
-        jdbcTemplate.update("DELETE FROM likes WHERE user_id = ?", id);
-        jdbcTemplate.update("DELETE FROM friendships WHERE user_id = ? OR friend_id = ?", id, id);
         jdbcTemplate.update("DELETE FROM users WHERE user_id = ?", id);
         log.info("Удалён пользователь: id={}", id);
     }
