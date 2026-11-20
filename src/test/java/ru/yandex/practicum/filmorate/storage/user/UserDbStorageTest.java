@@ -12,18 +12,22 @@ import java.time.LocalDate;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-
+import ru.yandex.practicum.filmorate.model.Film;
+import ru.yandex.practicum.filmorate.model.MpaRating;
+import ru.yandex.practicum.filmorate.storage.film.FilmDbStorage;
 
 @JdbcTest
 @AutoConfigureTestDatabase
-@Import(UserDbStorage.class)
+@Import({UserDbStorage.class, FilmDbStorage.class})
 class UserDbStorageTest {
 
     private final UserDbStorage userStorage;
+    private final FilmDbStorage filmStorage;
 
     @Autowired
-    public UserDbStorageTest(UserDbStorage userStorage) {
+    public UserDbStorageTest(UserDbStorage userStorage, FilmDbStorage filmStorage) {
         this.userStorage = userStorage;
+        this.filmStorage = filmStorage;
     }
 
     private User makeUser() {
@@ -94,5 +98,73 @@ class UserDbStorageTest {
         userStorage.deleteUser(created.getId());
 
         assertThat(userStorage.getUserById(created.getId())).isNull();
+    }
+
+    @Test
+    void getSimilarUserIdsReturnsOnlyUsersWithMaxOverlap() {
+        int targetUser = createUser("target_user_1");
+        int mostSimilarUser = createUser("most_similar_user");
+        int lessSimilarUser = createUser("less_similar_user");
+        Film film1 = createFilm("Film 1");
+        Film film2 = createFilm("Film 2");
+        Film film3 = createFilm("Film 3");
+        filmStorage.addLike(film1.getId(), targetUser);
+        filmStorage.addLike(film2.getId(), targetUser);
+        filmStorage.addLike(film1.getId(), mostSimilarUser);
+        filmStorage.addLike(film2.getId(), mostSimilarUser);
+        filmStorage.addLike(film3.getId(), mostSimilarUser);
+        filmStorage.addLike(film1.getId(), lessSimilarUser);
+
+        assertThat(userStorage.getSimilarUserIds(targetUser)).containsExactly(mostSimilarUser);
+    }
+
+    @Test
+    void getSimilarUserIdsReturnsAllUsersOnSameMaximum() {
+        int targetUser = createUser("target_user_2");
+        int similarUserA = createUser("similar_user_a");
+        int similarUserB = createUser("similar_user_b");
+        Film film1 = createFilm("Film A");
+        Film film2 = createFilm("Film B");
+        filmStorage.addLike(film1.getId(), targetUser);
+        filmStorage.addLike(film1.getId(), similarUserA);
+        filmStorage.addLike(film2.getId(), similarUserA);
+        filmStorage.addLike(film1.getId(), similarUserB);
+        filmStorage.addLike(film2.getId(), similarUserB);
+
+        assertThat(userStorage.getSimilarUserIds(targetUser))
+                .containsExactlyInAnyOrder(similarUserA, similarUserB);
+    }
+
+    @Test
+    void getSimilarUserIdsEmptyWithTargetNoLikes() {
+        int targetUser = createUser("empty_target");
+        int otherUser = createUser("other_user");
+        Film someFilm = createFilm("Some film");
+        filmStorage.addLike(someFilm.getId(), otherUser);
+
+        assertThat(userStorage.getSimilarUserIds(targetUser)).isEmpty();
+    }
+
+    private int createUser(String login) {
+        User user = new User();
+        user.setEmail(login + "@mail.ru");
+        user.setLogin(login);
+        user.setName(login);
+        user.setBirthday(LocalDate.of(1990, 1, 1));
+
+        return userStorage.addUser(user).getId();
+    }
+
+    private Film createFilm(String name) {
+        Film film = new Film();
+        film.setName(name);
+        film.setDescription("Описание");
+        film.setReleaseDate(LocalDate.of(2000, 1, 1));
+        film.setDuration(100);
+        MpaRating mpa = new MpaRating();
+        mpa.setId(1);
+        film.setMpa(mpa);
+
+        return filmStorage.addFilm(film);
     }
 }
