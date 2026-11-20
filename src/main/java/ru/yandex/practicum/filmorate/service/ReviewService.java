@@ -6,6 +6,9 @@ import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Review;
 import ru.yandex.practicum.filmorate.storage.review.ReviewStorage;
+import org.springframework.transaction.annotation.Transactional;
+import ru.yandex.practicum.filmorate.model.EventType;
+import ru.yandex.practicum.filmorate.model.Operation;
 
 import java.util.List;
 
@@ -15,7 +18,9 @@ public class ReviewService {
     private final ReviewStorage reviewStorage;
     private final UserService userService;
     private final FilmService filmService;
+    private final EventService eventService;
 
+    @Transactional
     public Review addReview(Review review) {
         validateContent(review);
         if (review.getUserId() == null || review.getFilmId() == null) {
@@ -23,16 +28,21 @@ public class ReviewService {
         }
         userService.getUserById(review.getUserId());
         filmService.getFilmById(review.getFilmId());
-        return reviewStorage.addReview(review);
+        Review saved = reviewStorage.addReview(review);
+        eventService.addEvent(saved.getUserId(), EventType.REVIEW, Operation.ADD, saved.getReviewId());
+        return saved;
     }
 
+    @Transactional
     public Review updateReview(Review review) {
         if (review.getReviewId() == null) {
             throw new ValidationException("Нужно указать ID отзыва");
         }
-        getReviewById(review.getReviewId());
+        Review stored = getReviewById(review.getReviewId());
         validateContent(review);
-        return reviewStorage.updateReview(review);
+        Review updated = reviewStorage.updateReview(review);
+        eventService.addEvent(stored.getUserId(), EventType.REVIEW, Operation.UPDATE, stored.getReviewId());
+        return updated;
     }
 
     public Review getReviewById(int id) {
@@ -60,9 +70,11 @@ public class ReviewService {
         reviewStorage.removeReaction(reviewId, userId, positive);
     }
 
+    @Transactional
     public void deleteReview(int id) {
-        getReviewById(id);
+        Review stored = getReviewById(id);
         reviewStorage.deleteReview(id);
+        eventService.addEvent(stored.getUserId(), EventType.REVIEW, Operation.REMOVE, id);
     }
 
     private void validateReaction(int reviewId, int userId) {
