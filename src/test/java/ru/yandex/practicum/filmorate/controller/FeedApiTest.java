@@ -108,8 +108,8 @@ class FeedApiTest {
     }
 
     @Test
-    @DisplayName("Повторный лайк не создаёт второе событие")
-    void shouldNotDuplicateLikeEvents() throws Exception {
+    @DisplayName("Повторный лайк записывается отдельным событием")
+    void shouldWriteEventForRepeatedLike() throws Exception {
         int userId = createUser("feed-liker");
         int filmId = createFilm("Feed like film");
 
@@ -120,10 +120,13 @@ class FeedApiTest {
 
         mockMvc.perform(get("/users/{userId}/feed", userId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].eventType").value("LIKE"))
                 .andExpect(jsonPath("$[0].operation").value("ADD"))
-                .andExpect(jsonPath("$[0].entityId").value(filmId));
+                .andExpect(jsonPath("$[0].entityId").value(filmId))
+                .andExpect(jsonPath("$[1].eventType").value("LIKE"))
+                .andExpect(jsonPath("$[1].operation").value("ADD"))
+                .andExpect(jsonPath("$[1].entityId").value(filmId));
     }
 
     @Test
