@@ -184,8 +184,10 @@ public class FilmDbStorage implements FilmStorage {
     }
 
     @Override
+    @Transactional
     public void deleteFilm(int id) {
         jdbcTemplate.update("DELETE FROM films WHERE film_id = ?", id);
+        log.info("Удалён фильм: id={}", id);
     }
 
     private void saveGenres(int filmId, Set<Genre> genres) {
