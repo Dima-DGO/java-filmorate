@@ -144,17 +144,47 @@ public class FilmDbStorage implements FilmStorage {
 
     @Override
     public List<Film> getPopularFilms(int count) {
-        List<Film> films = jdbcTemplate.query("""
+        return getPopularFilms(count, null, null);
+    }
+
+    @Override
+    public List<Film> getPopularFilms(int count, Integer genreId, Integer year) {
+        List<String> conditions = new ArrayList<>();
+        List<Object> params = new ArrayList<>();
+
+        if (genreId != null) {
+            conditions.add("""
+                    EXISTS (SELECT 1 FROM film_genres g
+                            WHERE g.film_id = f.film_id AND g.genre_id = ?)""");
+            params.add(genreId);
+        }
+
+        if (year != null) {
+            conditions.add("EXTRACT(YEAR FROM f.release_date) = ?");
+            params.add(year);
+        }
+
+        StringBuilder sql = new StringBuilder("""
                 SELECT f.film_id, f.name, f.description, f.release_date, f.duration,
                        f.mpa_id, m.name AS mpa_name,
                        COUNT(l.user_id) AS likes_count
                 FROM films f
                 LEFT JOIN mpa m ON m.id = f.mpa_id
                 LEFT JOIN likes l ON f.film_id = l.film_id
+                """);
+
+        if (!conditions.isEmpty()) {
+            sql.append(" WHERE ").append(String.join(" AND ", conditions));
+        }
+
+        sql.append("""
                 GROUP BY f.film_id, f.name, f.description, f.release_date, f.duration, f.mpa_id, m.name
                 ORDER BY likes_count DESC, f.film_id
                 LIMIT ?
-                """, this::mapRowToFilm, count);
+                """);
+        params.add(count);
+
+        List<Film> films = jdbcTemplate.query(sql.toString(), this::mapRowToFilm, params.toArray());
         loadGenres(films);
         loadDirectors(films);
         return films;

@@ -99,8 +99,8 @@ public class FilmService {
         return filmStorage.getFilmsByDirector(directorId, normalized);
     }
 
-    public List<Film> getPopularFilms(int count) {
-        return filmStorage.getPopularFilms(count);
+    public List<Film> getPopularFilms(int count, Integer genreId, Integer year) {
+        return filmStorage.getPopularFilms(count, genreId, year);
     }
 
     public List<Film> getCommonFilms(int userId, int friendId) {
