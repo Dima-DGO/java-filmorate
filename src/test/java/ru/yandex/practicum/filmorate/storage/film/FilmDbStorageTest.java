@@ -180,4 +180,58 @@ class FilmDbStorageTest {
 
         assertThat(filmStorage.getFilmById(created.getId())).isNull();
     }
+
+    @Test
+    void excludesAlreadyLikedFilms() {
+        int targetUser = createUser("target_user_exclude");
+        int similarUser = createUser("similar_user_exclude");
+        Film sharedFilm = filmStorage.addFilm(makeFilm());
+        Film recommendedFilm = filmStorage.addFilm(makeFilm());
+        filmStorage.addLike(sharedFilm.getId(), targetUser);
+        filmStorage.addLike(sharedFilm.getId(), similarUser);
+        filmStorage.addLike(recommendedFilm.getId(), similarUser);
+        List<Film> result = filmStorage.getFilmsLikedByUsersExcluding(List.of(similarUser), targetUser);
+
+        assertThat(result)
+                .extracting(Film::getId)
+                .containsExactly(recommendedFilm.getId());
+    }
+
+    @Test
+    void returnsUniqueFilmsWhenManyUsersLikedSameFilm() {
+        int targetUser = createUser("target_user_duplicates");
+        int similarUserA = createUser("similar_user_a");
+        int similarUserB = createUser("similar_user_b");
+        Film baseFilm = filmStorage.addFilm(makeFilm());
+        Film sharedRecommendedFilm = filmStorage.addFilm(makeFilm());
+        filmStorage.addLike(baseFilm.getId(), targetUser);
+        filmStorage.addLike(baseFilm.getId(), similarUserA);
+        filmStorage.addLike(sharedRecommendedFilm.getId(), similarUserA);
+        filmStorage.addLike(baseFilm.getId(), similarUserB);
+        filmStorage.addLike(sharedRecommendedFilm.getId(), similarUserB);
+
+        List<Film> result = filmStorage.getFilmsLikedByUsersExcluding(List.of(similarUserA, similarUserB), targetUser);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getId()).isEqualTo(sharedRecommendedFilm.getId());
+    }
+
+    @Test
+    void getLikedFilmIdsReturnsOnlyTargetLikes() {
+        int targetUser = createUser("target_user_likes");
+        int otherUser = createUser("other_user_likes");
+        Film targetLikedFilm = filmStorage.addFilm(makeFilm());
+        Film otherLikedFilm = filmStorage.addFilm(makeFilm());
+        filmStorage.addLike(targetLikedFilm.getId(), targetUser);
+        filmStorage.addLike(otherLikedFilm.getId(), otherUser);
+
+        assertThat(filmStorage.getLikedFilmIds(targetUser))
+                .containsExactly(targetLikedFilm.getId());
+    }
+
+    @Test
+    void getFilmsLikedByUsersExcludingReturnsEmptyWhenEmptyInput() {
+        assertThat(filmStorage.getFilmsLikedByUsersExcluding(List.of(), 1)).isEmpty();
+        assertThat(filmStorage.getFilmsLikedByUsersExcluding(null, 1)).isEmpty();
+    }
 }

@@ -333,5 +333,48 @@ public class FilmDbStorage implements FilmStorage {
         loadDirectors(films);
         return films;
     }
+
+    @Override
+    public Set<Integer> getLikedFilmIds(int userId) {
+        return new HashSet<>(jdbcTemplate.queryForList("SELECT film_id FROM likes WHERE user_id = ?",
+                Integer.class, userId));
+    }
+
+    @Override
+    public List<Film> getFilmsLikedByUsersExcluding(Collection<Integer> userIds, int excludeUserId) {
+        if (userIds == null || userIds.isEmpty()) {
+            return List.of();
+        }
+
+        String inClause = String.join(",", Collections.nCopies(userIds.size(), "?"));
+
+        String sql = """
+                SELECT DISTINCT f.film_id, f.name, f.description, f.release_date, f.duration,
+                f.mpa_id, m.name AS mpa_name
+                FROM films f
+                JOIN likes AS l ON l.film_id = f.film_id
+                LEFT JOIN mpa AS m ON m.id = f.mpa_id
+                WHERE l.user_id IN (%s)
+                  AND NOT EXISTS (
+                      SELECT 1 FROM likes l2
+                      WHERE l2.user_id = ? AND l2.film_id = f.film_id
+                  )
+                ORDER BY f.film_id
+                """.formatted(inClause);
+
+        Object[] args = new Object[userIds.size() + 1];
+        int i = 0;
+        for (Integer uId : userIds) {
+            args[i] = uId;
+            i++;
+        }
+        args[i] = excludeUserId;
+
+        List<Film> films = jdbcTemplate.query(sql, this::mapRowToFilm, args);
+        loadGenres(films);
+        loadDirectors(films);
+
+        return films;
+    }
 }
 

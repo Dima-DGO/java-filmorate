@@ -139,4 +139,25 @@ public class UserDbStorage implements UserStorage {
                 """, this::mapRowToUser, userId, otherUserId);
     }
 
+    @Override
+    public List<Integer> getSimilarUserIds(int userId) {
+        return jdbcTemplate.query("""
+                WITH target_likes AS (
+                    SELECT film_id FROM likes WHERE user_id = ?
+                ),
+                scores AS (
+                    SELECT l.user_id, COUNT(DISTINCT l.film_id) AS common_likes
+                    FROM likes l
+                    JOIN target_likes t ON t.film_id = l.film_id
+                    WHERE l.user_id <> ?
+                    GROUP BY l.user_id
+                )
+                SELECT user_id
+                FROM scores
+                WHERE common_likes = (SELECT MAX(common_likes) FROM scores)
+                ORDER BY user_id
+                """,
+                (rs, rowNum) -> rs.getInt("user_id"),
+                userId, userId);
+    }
 }
