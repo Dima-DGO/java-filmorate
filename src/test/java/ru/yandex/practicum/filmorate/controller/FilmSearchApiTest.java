@@ -1,0 +1,219 @@
+package ru.yandex.practicum.filmorate.controller;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.web.servlet.MockMvc;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@SpringBootTest(properties = "spring.datasource.url=jdbc:h2:mem:film-search-tests;DB_CLOSE_DELAY=-1")
+@AutoConfigureMockMvc
+class FilmSearchApiTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+    @Autowired
+    private ObjectMapper objectMapper;
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    @BeforeEach
+    void beforeEach() {
+        jdbcTemplate.update("DELETE FROM films");
+        jdbcTemplate.update("DELETE FROM directors");
+        jdbcTemplate.update("DELETE FROM users");
+    }
+
+    @Test
+    @DisplayName("Поиск по части названия без учёта регистра возвращает только подходящие фильмы")
+    void shouldFindFilmsByTitleIgnoringCase() throws Exception {
+        JsonNode matchingFilm = createFilm("The Matrix", "История о выборе");
+        createFilm("Interstellar", "The Matrix");
+
+        mockMvc.perform(get("/films/search")
+                        .param("query", "mAtR")
+                        .param("by", "title"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(content().json("[" + matchingFilm + "]"));
+    }
+
+    @Test
+    @DisplayName("Поиск возвращает фильмы по убыванию лайков, включая фильмы без лайков")
+    void shouldSortSearchResultsByPopularity() throws Exception {
+        int withoutLikes = createFilm("Matrix Zero", "Без лайков").get("id").asInt();
+        int withOneLike = createFilm("Matrix One", "Один лайк").get("id").asInt();
+        int withTwoLikes = createFilm("Matrix Two", "Два лайка").get("id").asInt();
+        int firstUserId = createUser("first");
+        int secondUserId = createUser("second");
+
+        mockMvc.perform(put("/films/{filmId}/like/{userId}", withOneLike, firstUserId))
+                .andExpect(status().isOk());
+        mockMvc.perform(put("/films/{filmId}/like/{userId}", withTwoLikes, firstUserId))
+                .andExpect(status().isOk());
+        mockMvc.perform(put("/films/{filmId}/like/{userId}", withTwoLikes, secondUserId))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/films/search")
+                        .param("query", "matrix")
+                        .param("by", "title"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[0].id").value(withTwoLikes))
+                .andExpect(jsonPath("$[1].id").value(withOneLike))
+                .andExpect(jsonPath("$[2].id").value(withoutLikes));
+    }
+
+    @Test
+    @DisplayName("Поиск без совпадений возвращает пустой JSON-массив")
+    void shouldReturnEmptyArrayWhenNoTitlesMatch() throws Exception {
+        createFilm("The Matrix", "История о выборе");
+        createFilm("Interstellar", "Космическое путешествие");
+
+        mockMvc.perform(get("/films/search")
+                        .param("query", "Avatar")
+                        .param("by", "title"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(content().json("[]"));
+    }
+
+    @Test
+    @DisplayName("Поиск по части имени режиссёра без учёта регистра возвращает его фильмы с режиссёрами")
+    void shouldFindFilmsByDirectorIgnoringCase() throws Exception {
+        int nolanId = createDirector("Christopher Nolan");
+        int tarantinoId = createDirector("Quentin Tarantino");
+        JsonNode matchingFilm = createFilm("Interstellar", "Космическое путешествие", nolanId);
+        createFilm("Nolan documentary", "Christopher Nolan", tarantinoId);
+
+        mockMvc.perform(get("/films/search")
+                        .param("query", "NoLa")
+                        .param("by", "director"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(content().json("[" + matchingFilm + "]"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"title,director", "director,title"})
+    @DisplayName("Совместный поиск по названию и режиссёру объединяет совпадения без дублей")
+    void shouldFindFilmsByTitleOrDirectorWithoutDuplicates(String by) throws Exception {
+        int nolanId = createDirector("Christopher Nolan");
+        int tarantinoId = createDirector("Quentin Tarantino");
+        JsonNode titleOnly = createFilm("Nolan biography", "Совпадение только по названию");
+        JsonNode directorOnly = createFilm("Interstellar", "Совпадение только по режиссёру", nolanId);
+        JsonNode both = createFilm("Nolan collection", "Совпадение по обоим полям", nolanId);
+        createFilm("Pulp Fiction", "Совпадений нет", tarantinoId);
+        JsonNode expected = objectMapper.createArrayNode()
+                .add(titleOnly)
+                .add(directorOnly)
+                .add(both);
+
+        mockMvc.perform(get("/films/search")
+                        .param("query", "NoLa")
+                        .param("by", by))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(content().json(expected.toString()));
+    }
+
+    @Test
+    @DisplayName("Несколько подходящих режиссёров не дублируют фильм и не завышают его популярность")
+    void shouldNotMultiplyFilmsOrLikesWhenSeveralDirectorsMatch() throws Exception {
+        int firstDirectorId = createDirector("Christopher Nolan");
+        int secondDirectorId = createDirector("Jonathan Nolan");
+        ObjectNode lessPopular = (ObjectNode) createFilm("Nolan story", "Один лайк", firstDirectorId);
+        lessPopular.withArray("directors").addObject().put("id", secondDirectorId);
+        mockMvc.perform(put("/films")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(lessPopular.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.directors.length()").value(2));
+        int lessPopularId = lessPopular.get("id").asInt();
+        int morePopularId = createFilm("Interstellar", "Два лайка", firstDirectorId).get("id").asInt();
+        int firstUserId = createUser("first");
+        int secondUserId = createUser("second");
+
+        mockMvc.perform(put("/films/{filmId}/like/{userId}", lessPopularId, firstUserId))
+                .andExpect(status().isOk());
+        mockMvc.perform(put("/films/{filmId}/like/{userId}", morePopularId, firstUserId))
+                .andExpect(status().isOk());
+        mockMvc.perform(put("/films/{filmId}/like/{userId}", morePopularId, secondUserId))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/films/search")
+                        .param("query", "NoLa")
+                        .param("by", "director,title"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].id").value(morePopularId))
+                .andExpect(jsonPath("$[1].id").value(lessPopularId))
+                .andExpect(jsonPath("$[1].directors.length()").value(2));
+    }
+
+    private int createDirector(String name) throws Exception {
+        ObjectNode request = objectMapper.createObjectNode().put("name", name);
+        String response = mockMvc.perform(post("/directors")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request.toString()))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        return objectMapper.readTree(response).get("id").asInt();
+    }
+
+    private int createUser(String login) throws Exception {
+        ObjectNode request = objectMapper.createObjectNode()
+                .put("login", login)
+                .put("email", login + "@example.com")
+                .put("birthday", "1990-05-15");
+        String response = mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request.toString()))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        return objectMapper.readTree(response).get("id").asInt();
+    }
+
+    private JsonNode createFilm(String name, String description) throws Exception {
+        return createFilm(name, description, null);
+    }
+
+    private JsonNode createFilm(String name, String description, Integer directorId) throws Exception {
+        ObjectNode request = objectMapper.createObjectNode()
+                .put("name", name)
+                .put("description", description)
+                .put("releaseDate", "2014-11-06")
+                .put("duration", 120);
+        request.putObject("mpa").put("id", 1);
+        request.putArray("genres").addObject().put("id", 1);
+        if (directorId != null) {
+            request.putArray("directors").addObject().put("id", directorId);
+        }
+
+        String response = mockMvc.perform(post("/films")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request.toString()))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        return objectMapper.readTree(response);
+    }
+}

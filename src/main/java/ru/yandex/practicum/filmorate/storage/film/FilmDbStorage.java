@@ -117,6 +117,32 @@ public class FilmDbStorage implements FilmStorage {
     }
 
     @Override
+    public List<Film> searchFilms(String query, List<String> searchFields) {
+        String pattern = "%" + query + "%";
+        List<Film> films = jdbcTemplate.query("""
+                SELECT f.film_id, f.name, f.description, f.release_date, f.duration,
+                       f.mpa_id, m.name AS mpa_name,
+                       COUNT(l.user_id) AS likes_count
+                FROM films f
+                LEFT JOIN mpa m ON m.id = f.mpa_id
+                LEFT JOIN likes l ON l.film_id = f.film_id
+                WHERE (? AND LOWER(f.name) LIKE LOWER(?))
+                   OR (? AND EXISTS (
+                       SELECT 1
+                       FROM film_directors fd
+                       JOIN directors d ON d.id = fd.director_id
+                       WHERE fd.film_id = f.film_id AND LOWER(d.name) LIKE LOWER(?)
+                   ))
+                GROUP BY f.film_id, f.name, f.description, f.release_date, f.duration, f.mpa_id, m.name
+                ORDER BY likes_count DESC, f.film_id
+                """, this::mapRowToFilm,
+                searchFields.contains("title"), pattern, searchFields.contains("director"), pattern);
+        loadGenres(films);
+        loadDirectors(films);
+        return films;
+    }
+
+    @Override
     public List<Film> getPopularFilms(int count) {
         return getPopularFilms(count, null, null);
     }

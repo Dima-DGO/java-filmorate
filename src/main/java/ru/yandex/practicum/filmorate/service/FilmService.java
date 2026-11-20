@@ -52,6 +52,14 @@ public class FilmService {
         return filmStorage.getAllFilms();
     }
 
+    public List<Film> searchFilms(String query, String by) {
+        List<String> searchFields = List.of(by.split(","));
+        if (searchFields.isEmpty() || !Set.of("title", "director").containsAll(searchFields)) {
+            throw new ValidationException("Неподдерживаемое поле поиска: " + by);
+        }
+        return filmStorage.searchFilms(query, searchFields);
+    }
+
     public Film getFilmById(int id) {
         Film film = filmStorage.getFilmById(id);
         if (film == null) {
