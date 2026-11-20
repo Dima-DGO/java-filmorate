@@ -6,6 +6,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -109,9 +111,10 @@ class FilmSearchApiTest {
                 .andExpect(content().json("[" + matchingFilm + "]"));
     }
 
-    @Test
+    @ParameterizedTest
+    @ValueSource(strings = {"title,director", "director,title"})
     @DisplayName("Совместный поиск по названию и режиссёру объединяет совпадения без дублей")
-    void shouldFindFilmsByTitleOrDirectorWithoutDuplicates() throws Exception {
+    void shouldFindFilmsByTitleOrDirectorWithoutDuplicates(String by) throws Exception {
         int nolanId = createDirector("Christopher Nolan");
         int tarantinoId = createDirector("Quentin Tarantino");
         JsonNode titleOnly = createFilm("Nolan biography", "Совпадение только по названию");
@@ -125,11 +128,46 @@ class FilmSearchApiTest {
 
         mockMvc.perform(get("/films/search")
                         .param("query", "NoLa")
-                        .param("by", "title,director"))
+                        .param("by", by))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.length()").value(3))
                 .andExpect(content().json(expected.toString()));
+    }
+
+    @Test
+    @DisplayName("Несколько подходящих режиссёров не дублируют фильм и не завышают его популярность")
+    void shouldNotMultiplyFilmsOrLikesWhenSeveralDirectorsMatch() throws Exception {
+        int firstDirectorId = createDirector("Christopher Nolan");
+        int secondDirectorId = createDirector("Jonathan Nolan");
+        ObjectNode lessPopular = (ObjectNode) createFilm("Nolan story", "Один лайк", firstDirectorId);
+        lessPopular.withArray("directors").addObject().put("id", secondDirectorId);
+        mockMvc.perform(put("/films")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(lessPopular.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.directors.length()").value(2));
+        int lessPopularId = lessPopular.get("id").asInt();
+        int morePopularId = createFilm("Interstellar", "Два лайка", firstDirectorId).get("id").asInt();
+        int firstUserId = createUser("first");
+        int secondUserId = createUser("second");
+
+        mockMvc.perform(put("/films/{filmId}/like/{userId}", lessPopularId, firstUserId))
+                .andExpect(status().isOk());
+        mockMvc.perform(put("/films/{filmId}/like/{userId}", morePopularId, firstUserId))
+                .andExpect(status().isOk());
+        mockMvc.perform(put("/films/{filmId}/like/{userId}", morePopularId, secondUserId))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/films/search")
+                        .param("query", "NoLa")
+                        .param("by", "director,title"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].id").value(morePopularId))
+                .andExpect(jsonPath("$[1].id").value(lessPopularId))
+                .andExpect(jsonPath("$[1].directors.length()").value(2));
     }
 
     private int createDirector(String name) throws Exception {
