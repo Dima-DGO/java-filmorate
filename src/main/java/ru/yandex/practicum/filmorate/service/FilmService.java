@@ -81,11 +81,6 @@ public class FilmService {
     public void addLike(int filmId, int userId) {
         getFilmById(filmId);
         userService.getUserById(userId);
-
-        if (filmStorage.getLikedFilmIds(userId).contains(filmId)) {
-            return;
-        }
-
         filmStorage.addLike(filmId, userId);
         eventService.addEvent(userId, EventType.LIKE, Operation.ADD, filmId);
     }
