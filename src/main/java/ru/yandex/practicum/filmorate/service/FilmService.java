@@ -15,6 +15,9 @@ import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
 import ru.yandex.practicum.filmorate.storage.director.DirectorStorage;
 import ru.yandex.practicum.filmorate.storage.genre.GenreDbStorage;
 import ru.yandex.practicum.filmorate.storage.mpa.MpaDbStorage;
+import org.springframework.transaction.annotation.Transactional;
+import ru.yandex.practicum.filmorate.model.EventType;
+import ru.yandex.practicum.filmorate.model.Operation;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -29,6 +32,7 @@ public class FilmService {
     private final MpaDbStorage mpaStorage;
     private final GenreDbStorage genreStorage;
     private final DirectorStorage directorStorage;
+    private final EventService eventService;
 
     public Film addFilm(Film film) {
         validationService.validateFilm(film);
@@ -73,16 +77,25 @@ public class FilmService {
         filmStorage.deleteFilm(id);
     }
 
+    @Transactional
     public void addLike(int filmId, int userId) {
         getFilmById(filmId);
         userService.getUserById(userId);
+
+        if (filmStorage.getLikedFilmIds(userId).contains(filmId)) {
+            return;
+        }
+
         filmStorage.addLike(filmId, userId);
+        eventService.addEvent(userId, EventType.LIKE, Operation.ADD, filmId);
     }
 
+    @Transactional
     public void removeLike(int filmId, int userId) {
         getFilmById(filmId);
         userService.getUserById(userId);
         filmStorage.removeLike(filmId, userId);
+        eventService.addEvent(userId, EventType.LIKE, Operation.REMOVE, filmId);
     }
 
     public List<Film> getFilmsByDirector(int directorId, String sortBy) {
