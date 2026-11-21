@@ -157,6 +157,7 @@ public class UserDbStorage implements UserStorage {
                 FROM scores
                 WHERE common_likes = (SELECT MAX(common_likes) FROM scores)
                 ORDER BY user_id
+                LIMIT 10
                 """,
                 (rs, rowNum) -> rs.getInt("user_id"),
                 userId, userId);

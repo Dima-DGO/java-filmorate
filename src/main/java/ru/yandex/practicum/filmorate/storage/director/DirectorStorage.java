@@ -10,13 +10,10 @@ public interface DirectorStorage {
 
     Director getById(int id);
 
-    boolean existsById(int id);
-
     Director addDirector(Director director);
 
     Director updateDirector(Director director);
 
     void deleteDirector(int id);
 
-    List<Director> getByNameContaining(String query);
 }

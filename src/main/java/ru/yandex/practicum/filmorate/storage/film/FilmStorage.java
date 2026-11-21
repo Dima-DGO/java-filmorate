@@ -24,8 +24,6 @@ public interface FilmStorage {
 
     List<Film> getPopularFilms(int count, Integer genreId, Integer year);
 
-    List<Film> getPopularFilms(int count);
-
     Set<Integer> getLikedFilmIds(int userId);
 
     List<Film> getFilmsLikedByUsersExcluding(Collection<Integer> userIds, int excludeUserId);

@@ -33,12 +33,6 @@ public class DirectorDbStorage implements DirectorStorage {
                 .stream().findFirst().orElse(null);
     }
 
-    @Override
-    public boolean existsById(int id) {
-        Integer count = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM directors WHERE id = ?", Integer.class, id);
-        return count != null && count > 0;
-    }
 
     @Override
     public Director addDirector(Director director) {
@@ -69,13 +63,6 @@ public class DirectorDbStorage implements DirectorStorage {
     public void deleteDirector(int id) {
         jdbcTemplate.update("DELETE FROM directors WHERE id = ?", id);
         log.info("Удалён режиссёр: id={}", id);
-    }
-
-    @Override
-    public List<Director> getByNameContaining(String query) {
-        return jdbcTemplate.query(
-                "SELECT id, name FROM directors WHERE LOWER(name) LIKE LOWER(?) ORDER BY id",
-                this::mapRow, "%" + query + "%");
     }
 
     private Director mapRow(ResultSet rs, int rowNum) throws SQLException {

@@ -118,7 +118,7 @@ public class FilmDbStorage implements FilmStorage {
 
     @Override
     public List<Film> searchFilms(String query, List<String> searchFields) {
-        String pattern = "%" + query + "%";
+        String pattern = "%" + query.toLowerCase(java.util.Locale.ENGLISH) + "%";
         List<Film> films = jdbcTemplate.query("""
                 SELECT f.film_id, f.name, f.description, f.release_date, f.duration,
                        f.mpa_id, m.name AS mpa_name,
@@ -126,12 +126,12 @@ public class FilmDbStorage implements FilmStorage {
                 FROM films f
                 LEFT JOIN mpa m ON m.id = f.mpa_id
                 LEFT JOIN likes l ON l.film_id = f.film_id
-                WHERE (? AND LOWER(f.name) LIKE LOWER(?))
+                WHERE (? AND LOWER(f.name) LIKE ?)
                    OR (? AND EXISTS (
                        SELECT 1
                        FROM film_directors fd
                        JOIN directors d ON d.id = fd.director_id
-                       WHERE fd.film_id = f.film_id AND LOWER(d.name) LIKE LOWER(?)
+                       WHERE fd.film_id = f.film_id AND LOWER(d.name) LIKE ?
                    ))
                 GROUP BY f.film_id, f.name, f.description, f.release_date, f.duration, f.mpa_id, m.name
                 ORDER BY likes_count DESC, f.film_id
@@ -140,11 +140,6 @@ public class FilmDbStorage implements FilmStorage {
         loadGenres(films);
         loadDirectors(films);
         return films;
-    }
-
-    @Override
-    public List<Film> getPopularFilms(int count) {
-        return getPopularFilms(count, null, null);
     }
 
     @Override
