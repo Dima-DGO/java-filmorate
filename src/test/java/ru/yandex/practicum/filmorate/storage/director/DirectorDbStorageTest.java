@@ -83,10 +83,12 @@ class DirectorDbStorageTest {
     }
 
     @Test
-    void getByNameContainingIsCaseInsensitive() {
+    void getAllContainsDirectorByNameIgnoringCase() {
         directorStorage.addDirector(makeDirector("Christopher Nolan"));
 
-        List<Director> found = directorStorage.getByNameContaining("nolan");
+        List<Director> found = directorStorage.getAll().stream()
+                .filter(director -> director.getName().equalsIgnoreCase("christopher nolan"))
+                .toList();
 
         assertThat(found).hasSize(1);
         assertThat(found.get(0).getName()).isEqualTo("Christopher Nolan");

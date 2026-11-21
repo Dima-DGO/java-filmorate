@@ -249,8 +249,7 @@ public class ReviewsTest {
         }
         mockMvc.perform(get("/reviews")).andExpect(jsonPath("$.length()").value(10));
         mockMvc.perform(get("/reviews").param("count", "11")).andExpect(jsonPath("$.length()").value(11));
-        mockMvc.perform(get("/reviews").param("count", "0"))
-                .andExpect(status().isOk()).andExpect(content().json("[]"));
+        mockMvc.perform(get("/reviews").param("count", "0")).andExpect(status().isBadRequest());
         mockMvc.perform(get("/reviews").param("count", "-1")).andExpect(status().isBadRequest());
     }
 
@@ -293,7 +292,7 @@ public class ReviewsTest {
 
     private int createReview() throws Exception {
         return read(mockMvc.perform(post("/reviews").contentType(MediaType.APPLICATION_JSON)
-                        .content(reviewBody().toString())).andExpect(status().isOk()))
+                .content(reviewBody().toString())).andExpect(status().isOk()))
                 .get("reviewId").asInt();
     }
 
@@ -301,7 +300,7 @@ public class ReviewsTest {
         ObjectNode request = objectMapper.createObjectNode().put("login", login)
                 .put("email", login + "@example.com").put("birthday", "1990-05-15");
         return read(mockMvc.perform(post("/users").contentType(MediaType.APPLICATION_JSON)
-                        .content(request.toString())).andExpect(status().isOk())).get("id").asInt();
+                .content(request.toString())).andExpect(status().isOk())).get("id").asInt();
     }
 
     private int createFilm(String name) throws Exception {
@@ -309,7 +308,7 @@ public class ReviewsTest {
                 .put("description", "Описание").put("releaseDate", "2014-11-06").put("duration", 169);
         request.putObject("mpa").put("id", 1);
         return read(mockMvc.perform(post("/films").contentType(MediaType.APPLICATION_JSON)
-                        .content(request.toString())).andExpect(status().isOk())).get("id").asInt();
+                .content(request.toString())).andExpect(status().isOk())).get("id").asInt();
     }
 
     private JsonNode read(ResultActions result) throws Exception {

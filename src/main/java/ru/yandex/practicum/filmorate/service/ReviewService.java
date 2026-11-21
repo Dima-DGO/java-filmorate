@@ -54,8 +54,8 @@ public class ReviewService {
     }
 
     public List<Review> getAllReview(Integer filmId, int count) {
-        if (count < 0) {
-            throw new ValidationException("Количество отзывов не может быть отрицательным");
+        if (count < 1) {
+            throw new ValidationException("Количество отзывов должно быть положительным");
         }
         return reviewStorage.getAllReview(filmId, count);
     }
