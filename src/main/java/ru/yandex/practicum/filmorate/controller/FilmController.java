@@ -36,6 +36,11 @@ public class FilmController {
         return filmService.getAllFilms();
     }
 
+    @GetMapping("/search")
+    public List<Film> searchFilms(@RequestParam String query, @RequestParam String by) {
+        return filmService.searchFilms(query, by);
+    }
+
     @GetMapping("/{id}")
     public Film getFilmById(@PathVariable int id) {
         log.info("Получен запрос на получение фильма с ID: {}", id);
@@ -49,9 +54,18 @@ public class FilmController {
     }
 
     @GetMapping("/popular")
-    public List<Film> getPopularFilms(@RequestParam(defaultValue = "10") int count) {
-        log.info("Получен запрос на получение {} самых популярных фильмов", count);
-        return filmService.getPopularFilms(count);
+    public List<Film> getPopularFilms(@RequestParam(defaultValue = "10") int count,
+                                      @RequestParam(required = false) Integer genreId,
+                                      @RequestParam(required = false) Integer year) {
+        log.info("Получен запрос на получение {} самых популярных фильмов, жанр={}, год={}",
+                count, genreId, year);
+        return filmService.getPopularFilms(count, genreId, year);
+    }
+
+    @GetMapping("/common")
+    public List<Film> getCommonFilms(@RequestParam int userId, @RequestParam int friendId) {
+        log.info("Получен запрос на получение общих фильмов пользователей {} и {}", userId, friendId);
+        return filmService.getCommonFilms(userId, friendId);
     }
 
     @PutMapping("/{filmId}/like/{userId}")
@@ -65,6 +79,14 @@ public class FilmController {
         log.info("Пользователь {} убрал лайк у фильма {}", userId, filmId);
         filmService.removeLike(filmId, userId);
     }
+
+    @GetMapping("/director/{directorId}")
+    public List<Film> getFilmsByDirector(@PathVariable int directorId,
+                                         @RequestParam(defaultValue = "likes") String sortBy) {
+        log.info("Получен запрос на получение фильмов режиссёра с ID: {}, сортировка: {}", directorId, sortBy);
+        return filmService.getFilmsByDirector(directorId, sortBy);
+    }
+
 }
 
 

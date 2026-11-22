@@ -12,8 +12,12 @@ import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.Genre;
 import ru.yandex.practicum.filmorate.model.MpaRating;
 import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
+import ru.yandex.practicum.filmorate.storage.director.DirectorStorage;
 import ru.yandex.practicum.filmorate.storage.genre.GenreDbStorage;
 import ru.yandex.practicum.filmorate.storage.mpa.MpaDbStorage;
+import org.springframework.transaction.annotation.Transactional;
+import ru.yandex.practicum.filmorate.model.EventType;
+import ru.yandex.practicum.filmorate.model.Operation;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -27,6 +31,8 @@ public class FilmService {
     private final ValidationService validationService;
     private final MpaDbStorage mpaStorage;
     private final GenreDbStorage genreStorage;
+    private final DirectorStorage directorStorage;
+    private final EventService eventService;
 
     public Film addFilm(Film film) {
         validationService.validateFilm(film);
@@ -50,6 +56,14 @@ public class FilmService {
         return filmStorage.getAllFilms();
     }
 
+    public List<Film> searchFilms(String query, String by) {
+        List<String> searchFields = List.of(by.split(","));
+        if (searchFields.isEmpty() || !Set.of("title", "director").containsAll(searchFields)) {
+            throw new ValidationException("Неподдерживаемое поле поиска: " + by);
+        }
+        return filmStorage.searchFilms(query, searchFields);
+    }
+
     public Film getFilmById(int id) {
         Film film = filmStorage.getFilmById(id);
         if (film == null) {
@@ -63,21 +77,44 @@ public class FilmService {
         filmStorage.deleteFilm(id);
     }
 
+    @Transactional
     public void addLike(int filmId, int userId) {
         getFilmById(filmId);
         userService.getUserById(userId);
         filmStorage.addLike(filmId, userId);
+        eventService.addEvent(userId, EventType.LIKE, Operation.ADD, filmId);
     }
 
+    @Transactional
     public void removeLike(int filmId, int userId) {
         getFilmById(filmId);
         userService.getUserById(userId);
         filmStorage.removeLike(filmId, userId);
+        eventService.addEvent(userId, EventType.LIKE, Operation.REMOVE, filmId);
     }
 
+    public List<Film> getFilmsByDirector(int directorId, String sortBy) {
+        if (directorStorage.getById(directorId) == null) {
+            throw new NotFoundException("Режиссёр с ID " + directorId + " не найден");
+        }
+        String normalized = sortBy == null || sortBy.isBlank()
+                ? "likes"
+                : sortBy.trim().toLowerCase();
+        if (!normalized.equals("year") && !normalized.equals("likes")) {
+            throw new ValidationException("Некорректный параметр sortBy: " + sortBy
+                    + ". Допустимые значения: year, likes");
+        }
+        return filmStorage.getFilmsByDirector(directorId, normalized);
+    }
 
-    public List<Film> getPopularFilms(int count) {
-        return filmStorage.getPopularFilms(count);
+    public List<Film> getPopularFilms(int count, Integer genreId, Integer year) {
+        return filmStorage.getPopularFilms(count, genreId, year);
+    }
+
+    public List<Film> getCommonFilms(int userId, int friendId) {
+        userService.getUserById(userId);
+        userService.getUserById(friendId);
+        return filmStorage.getCommonFilms(userId, friendId);
     }
 
     private void validateFilmRefs(Film film) {
